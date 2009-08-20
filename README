@@ -1,13 +1,65 @@
-PersistedVirtualAttributes
-==========================
-
-Introduction goes here.
-
-
-Example
-=======
-
-Example goes here.
-
-
-Copyright (c) 2009 [name of plugin creator], released under the MIT license
+# == Overview
+#
+# This PersistedVirtualAttributes plugin persists virtual attributes (hey, that sounds like a good plugin
+# name!) in a specified text column in the database.
+#
+# == Expectations
+# The plugin requires the existence of a text column on the model it's applied to, unused by anything else
+# in the application (it'll be serialized as a hash and used to store the virtual attributes).
+#
+# Note that only objects which can be serialized by Rails can be persisted.
+#
+# == Motivation / Example uses
+#
+# Consider an application which verifies user identities through various ID verification services.  Each
+# remote service asks its own set of questions (some want Driver's License number and State, others want
+# the user's address, etc.) and returns its own custom information (e.g. a yes/no boolean, or a confidence
+# interval, or custom errors).
+#
+# Each verification service is represented by a separate model.  One approach would be to create a new database
+# table for each model, but that's kinda ugly (cluttering the DB unneccessarily) and the models share so
+# much in common that they're already STI subclasses off a general Verification model anyway.
+#
+# Assuming the actual verified/not verified outcome is cached in a boolean column on the User model,
+# the Verification model itself will only rarely be read out of the DB (probably just by admins reviewing 
+# verification history) so adding two serialized text columns isn't a performance concern.  Enter 
+# PersistedVirtualAttributes:
+#
+#   class Verification < ActiveRecord::Base
+#     # ... shared verification stuff here
+#   end
+#
+#   class AddressVerification < Verification
+#     persist_virtual_attributes :in => :custom_data, :attributes => [:street, :city, :state, :zip]
+#
+#     persist_virtual_attributes :in => :response_data, :attributes => [:response_xml, :verification_status]
+# 
+#     validates_presence_of :street, :city, :state
+#   end
+# 
+#   class DriversLicenseVerification < Verification
+#     persist_virtual_attributes :store_column => :custom_data, # Same thing as :in, in case you want to be explicit
+#                               :attributes => [:number, :expiration, :state]
+#
+#     persist_virtual_attributes :in => :response_data,
+#                               :attributes => [:response_json, :verification_status]
+# 
+#     validates_presence_of :state, :number, :expiration
+#     validates_numericality_of :number
+#   end
+# 
+# Now you can do things like:
+# 
+#   >> a = AddressVerification.new(:street => '123 Main St.', :city => 'San Francisco')
+#   >> a.state = 'CA'
+#   >> a.city # => 'San Francisco'
+#   >> a.save # => true
+#   >> b = AddressVerification.first
+#   >> b.street # => '123 Main St.'
+# 
+# Note that you can run validations on the virtual attributes just like you can with real columns.
+# The only difference is that when the model is stored the virtual attributes are serialized to a single
+# text column so each different subclass can easily have its own custom attributes without messing 
+# with the DB schema. Glorious DRYness.
+#
+# Copyright (c) 2009 Kali Donovan, released under the MIT license
