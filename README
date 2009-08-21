@@ -1,8 +1,16 @@
 # == Overview
 #
 # This PersistedVirtualAttributes plugin persists virtual attributes (hey, that sounds like a good plugin
-# name!) in a specified text column in the database.
+# name!) in a specified text column in the database.  Alternatively, you could think of it as making the
+# mechanics of managing serialized data for a model transparent to the user, so rather than:
 #
+#   model.serialized_column = {}
+#   model.serialized_column[:food] => :pickles
+#
+# you can simply do:
+# 
+#   model.food = :pickles
+# 
 # == Expectations
 # The plugin requires the existence of a text column on the model it's applied to, unused by anything else
 # in the application (it'll be serialized as a hash and used to store the virtual attributes).

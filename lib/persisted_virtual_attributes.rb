@@ -24,7 +24,16 @@ module ActiveRecord #:nodoc
     # == Overview
     #
     # This PersistedVirtualAttributes plugin persists virtual attributes (hey, that sounds like a good plugin
-    # name!) in a specified text column in the database.
+    # name!) in a specified text column in the database.  Alternatively, you could think of it as making the
+    # mechanics of managing serialized data for a model transparent to the user, so rather than:
+    #
+    #   model.serialized_column = {}
+    #   model.serialized_column[:food] => :pickles
+    #
+    # you can simply do:
+    # 
+    #   model.food = :pickles
+    #
     #
     # == Expectations
     # The plugin requires the existence of a text column on the model it's applied to, unused by anything else
@@ -117,7 +126,13 @@ module ActiveRecord #:nodoc
         def persist_virtual_attributes(opts = {})
           store_column = (opts[:store_column] || opts[:in]).try(:to_sym)
           new_custom_attributes = (opts[:attributes] || []).map(&:to_sym)
-                    
+          
+          # General setup
+          cattr_accessor :custom_attribute_stores, :custom_attributes, :custom_attributes_by_store
+          self.custom_attribute_stores ||= []
+          self.custom_attributes ||= []
+          self.custom_attributes_by_store ||= {}
+          
           # ==================================================
           # = Verify inputs before doing anything meaningful =
           # ==================================================
@@ -127,7 +142,7 @@ module ActiveRecord #:nodoc
           raise ArgumentError.new('PersistVirtualAttributes: No virtual attributes provided') if new_custom_attributes.empty?
           
           # Then ensure the column exists... 
-          store_column_as_column = self.columns.detect{|c| c.name == store_column}
+          store_column_as_column = self.columns.detect{|c| c.name == store_column.to_s}
           raise ActiveRecordError.new("PersistVirtualAttributes: No such column: #{store_column}") unless store_column_as_column
           # ... and it's a text column
           raise ActiveRecordError.new("PersistVirtualAttributes: #{store_column} is not a text column") unless store_column_as_column.type == :text
@@ -135,19 +150,13 @@ module ActiveRecord #:nodoc
           # Finally, make sure the attributes don't already exist
           existing_columns = self.column_names.map(&:to_sym) & new_custom_attributes
           raise ActiveRecordError.new("PersistVirtualAttributes: Cannot create virtual attributes (columns already exist): #{existing_columns.inspect}") unless existing_columns.empty?
-          existing_attributes = @@custom_attributes & new_custom_attributes
+          existing_attributes = self.custom_attributes & new_custom_attributes
           raise ActiveRecordError.new("PersistVirtualAttributes: Cannot create virtual attributes (already defined): #{existing_attributes.inspect}") unless existing_attributes.empty?
           
           
           # ===================
           # = OK, get to work =
           # ===================
-          
-          # General setup
-          cattr_accessor :custom_attribute_stores, :custom_attributes, :custom_attributes_by_store
-          self.custom_attribute_stores ||= []
-          self.custom_attributes ||= []
-          self.custom_attributes_by_store ||= {}
           
           serialize store_column, Hash
           self.custom_attribute_stores << store_column
