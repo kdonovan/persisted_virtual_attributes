@@ -121,17 +121,17 @@ module ActiveRecord #:nodoc
         # storing custom response fields from a remote service in another).
         #
         # To list persisted attributes, either all or just those stored in a particular column, try some combination of
-        # +custom_attributes+, +custom_attribute_stores+, and +custom_attributes_by_store+.
+        # +persisted_virtual_attributes+, +persisted_virtual_attribute_stores+, and +persisted_virtual_attributes_by_store+.
         #
         def persist_virtual_attributes(opts = {})
           store_column = (opts[:store_column] || opts[:in]).try(:to_sym)
           new_custom_attributes = (opts[:attributes] || []).map(&:to_sym)
           
           # General setup
-          cattr_accessor :custom_attribute_stores, :custom_attributes, :custom_attributes_by_store
-          self.custom_attribute_stores ||= []
-          self.custom_attributes ||= []
-          self.custom_attributes_by_store ||= {}
+          cattr_accessor :persisted_virtual_attribute_stores, :persisted_virtual_attributes, :persisted_virtual_attributes_by_store
+          self.persisted_virtual_attribute_stores ||= []
+          self.persisted_virtual_attributes ||= []
+          self.persisted_virtual_attributes_by_store ||= {}
           
           # ==================================================
           # = Verify inputs before doing anything meaningful =
@@ -150,7 +150,7 @@ module ActiveRecord #:nodoc
           # Finally, make sure the attributes don't already exist
           existing_columns = self.column_names.map(&:to_sym) & new_custom_attributes
           raise ActiveRecordError.new("PersistVirtualAttributes: Cannot create virtual attributes (columns already exist): #{existing_columns.inspect}") unless existing_columns.empty?
-          existing_attributes = self.custom_attributes & new_custom_attributes
+          existing_attributes = self.persisted_virtual_attributes & new_custom_attributes
           raise ActiveRecordError.new("PersistVirtualAttributes: Cannot create virtual attributes (already defined): #{existing_attributes.inspect}") unless existing_attributes.empty?
           
           
@@ -159,8 +159,8 @@ module ActiveRecord #:nodoc
           # ===================
           
           serialize store_column, Hash
-          self.custom_attribute_stores << store_column
-          self.custom_attributes_by_store[store_column] = []
+          self.persisted_virtual_attribute_stores << store_column
+          self.persisted_virtual_attributes_by_store[store_column] = []
           
           # Now process the provided attributes
           new_custom_attributes.each do |attrib|
@@ -177,8 +177,8 @@ module ActiveRecord #:nodoc
             end
             
             # Add the attribute to the list of virtual attribs (global and by store)
-            self.custom_attributes << attrib
-            self.custom_attributes_by_store[store_column] << attrib
+            self.persisted_virtual_attributes << attrib
+            self.persisted_virtual_attributes_by_store[store_column] << attrib
           end
           
         end
